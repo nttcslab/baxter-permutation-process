@@ -1,5 +1,7 @@
 # Bayesian Inference for Baxter Permutation Process
 
+![MCMC](https://github.com/nttcslab/baxter-permutation-process/tree/main/figures/animationMCMCepinions.gif)
+
 This is a MATLAB code for Bayesian nonparametric relational data analysis based on **Baxter Permutation Process** ([NeurIPS, 2020](https://nips.cc/)). The key features are listed as follows:
 
 - **Clustering based on rectangular partitioning**: For an input relational matrix, it can discover disjoint rectangle blocks and suitable permutations of rows and columns. 
@@ -17,6 +19,8 @@ You will need a basic MATLAB installation without any other Toolboxes.
 Then you can see a Markov chain Monte Carlo (MCMC) evolution with the following two figures:
 - Rectangular partitioning of a sample matrix.
 - Perplexity evolution.
+
+![screen](https://github.com/nttcslab/baxter-permutation-process/tree/main/figures/demoscreen.gif)
 
 ## Inference (Model Fitting) Usage
 
@@ -57,6 +61,8 @@ Then, you can see a BP sample. Moreover, according to the fact that there is one
 2. `imagesc(FP);` 
 
 Finally, you can see a FP sample. 
+
+![sampleBPP](https://github.com/nttcslab/baxter-permutation-process/tree/main/figures/sampleBPP.gif)
 
 ## Reference
 
