@@ -10,19 +10,18 @@ This is a MATLAB code for Bayesian nonparametric relational data analysis based 
 
 You will need a basic MATLAB installation without any other Toolboxes. 
 
-## Very Quick Guide
+## In a nutshell
 
-1. Unzip to any directory.
-2. Go to `\BPPinference` directory.
-3. Typing `run`
+1. `cd baxter-permutation-process`
+2. `run` 
 
 Then you can see a Markov chain Monte Carlo (MCMC) evolution with the following two figures:
-- Rectangular partitioning of a sample matrix.
+- Rectangular partitioning of a sample matrix (`irmdata\epinions.mat` ).
 - Perplexity evolution.
 
 ![demoscreen](https://user-images.githubusercontent.com/73105349/96674012-c70bc880-13a2-11eb-921b-3d6b5e78d6cf.gif)
 
-## Inference (Model Fitting) Usage
+## Bayesian inference (Model Fitting) Usage
 
 Given an input relational matrix, the Baxter permutation process can be fitted to it by a MCMC inference algorithm as follows:
 
@@ -36,7 +35,7 @@ or
 - opt.maxiter: Maximum number of iterations. 
 - opt.missingRatio: Ratio of test/(training+test). 
 
-Note that the input data must be categorical X(i,j)={1,2,3,...}.  For example, if the input matrix X consists of binary {0,1}, then we can simply rewrite X=X+1 in advance. 
+Note that the input data must be natural numbers, that is,  X(i,j)={1,2,3,...L}, where L is the number of categories.  If X(i,j)=0, then it can be regarded as a missing entry. For example, if the input matrix X consists of binary {0,1}, then we can simply rewrite X=X+1 in advance. 
 
 ## Analysis Result Visualization
 
@@ -53,7 +52,7 @@ Our Baxter permutation process can simulate a sample of a sequence of Baxter per
 1. `addpath('BPPCodes');`
 2. `BP=1; UniformRandom =rand(1);` 
 3. `for ii=1:10; [BP, UniformRandom] = func_EvolvBP(BP, UniformRandom); end`
-4. Typing `BP`
+4. `BP`
 
 Then, you can see a BP sample. Moreover, according to the fact that there is one-to-one correspondence between BPs and floorplan partitionings (FPs), the corresponding FP can be also induced from the BP sample:
 
@@ -64,4 +63,4 @@ Finally, you can see a FP sample.
 
 ## Reference
 
-1. M. Nakano, A. Kimura, T. Yamada, and N. Ueda, 'Baxter Permutation Process,' *Advances in Neural Information Processing Systems* 33 (NIPS 2020). 
+1. M. Nakano, A. Kimura, T. Yamada, and N. Ueda, 'Baxter Permutation Process,' *Advances in Neural Information Processing Systems* 33 (NeurIPS 2020). 
