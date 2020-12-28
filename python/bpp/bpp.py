@@ -5,6 +5,7 @@ from numpy import random
 import scipy.special
 import matplotlib.pyplot as plt
 import math
+import sys
 from . import utils
 
 def delete_max(bp, uniform_random):
@@ -73,24 +74,27 @@ def evolv_bp(bp, uniform_rand, new_uniform_rand=None):
     l2r_maxs, r2l_maxs, l2r_locs, r2l_locs = utils.extract_maxima(bp)
 
     # searching for a position to insert a new index
+    # Note: Only a single condition will be accepted among the following 4 ones.
     ## first from left
     if new_uniform_rand < uniform_rand[ l2r_maxs[0] ]:
-        bp = np.insert(bp, l2r_locs[0], len_bp)
+        new_bp = np.insert(bp.copy(), l2r_locs[0], len_bp)
     ## later from left
     elif l2r_maxs.shape[0] > 1:
         for ii in range(1, l2r_maxs.shape[0]):
             if new_uniform_rand < uniform_rand[ l2r_maxs[ii] ]:
-                bp = np.insert(bp, l2r_locs[ii], len_bp); break
+                new_bp = np.insert(bp.copy(), l2r_locs[ii], len_bp); break
     ## first from right
-    elif uniform_rand[ r2l_maxs[0] ] < new_uniform_rand:
-        bp = np.insert(bp, r2l_locs[0], len_bp)
+    if ('new_bp' not in locals()) and (uniform_rand[ r2l_maxs[0] ] < new_uniform_rand):
+        new_bp = np.insert(bp.copy(), r2l_locs[0]+1, len_bp)
     elif r2l_maxs.shape[0] > 1:
         for ii in range(1, r2l_maxs.shape[0]):
             if uniform_rand[ r2l_maxs[ii] ] < new_uniform_rand:
-                bp = np.insert(bp, r2l_locs[ii], len_bp); break
+                new_bp = np.insert(bp.copy(), r2l_locs[ii]+1, len_bp); break
+    if 'new_bp' not in locals():
+        print('Error: Cannot insert a new element in the existing Baxter permutation.'); sys.exit(1)
 
     # return
-    return bp, np.append(uniform_rand, new_uniform_rand)
+    return new_bp, np.append(uniform_rand, new_uniform_rand)
 
 def bp2fp(bp):
     """
@@ -179,9 +183,9 @@ def labelmat2blocks(label_mat):
         A set of blocks in a given label matrix
     """
 
-    len_bp = label_mat.max()+1
-    blocks = np.zeros((len_bp, 4), dtype=int)
-    for ii in range(len_bp):
+    num_blocks = label_mat.max()+1
+    blocks = np.zeros((num_blocks, 4), dtype=int)
+    for ii in range(num_blocks):
         check = np.where(label_mat==ii)
         blocks[ii] = [ check[0].min(), check[0].max()+1, check[1].min(), check[1].max()+1 ]
     return blocks
@@ -231,7 +235,7 @@ def evolv_rp(bp, label_mat, beta_rand, rect_locs):
         new_rect_locs[-1, 3] = above_rects.max(axis=0)[3]
     else:
         # the left block and rectangle
-        left_blk_idxs = label_mat[ cur_block[0]:cur_block[1], cur_block[2]-1 ]
+        left_blk_idxs = np.unique( label_mat[ cur_block[0]:cur_block[1], cur_block[2]-1 ] )
         left_rects = rect_locs[left_blk_idxs]
         # new width of the current rectangle
         width_left_rect = np.min(left_rects[:,3] - left_rects[:,2])
@@ -240,8 +244,8 @@ def evolv_rp(bp, label_mat, beta_rand, rect_locs):
         new_rect_locs[left_blk_idxs, 3] = left_rects[:,3] - cut_length
         new_rect_locs[-1, 0] = left_rects.min(axis=0)[0]
         new_rect_locs[-1, 1] = left_rects.max(axis=0)[1]
-        new_rect_locs[-1, 2] = left_rects.min(axis=0)[3] - cut_length
-        new_rect_locs[-1, 3] = left_rects.min(axis=0)[3]
+        new_rect_locs[-1, 2] = left_rects.max(axis=0)[3] - cut_length
+        new_rect_locs[-1, 3] = left_rects.max(axis=0)[3]
 
     return new_rect_locs
 
@@ -261,7 +265,7 @@ def delete_rp(bp, label_mat, rect_locs):
     Returns
     ----------
     rect_locs:
-        updated "rect_locs"
+        An updated "rect_locs"
     """
 
     # initialization
@@ -316,18 +320,26 @@ def count_elems_in_rects(X, rect_locs, row_locs, col_locs, row_pos=None, col_pos
     ## (2) missing elements are represented as -1
     max_elems = X.max() + 1
     num_blocks = rect_locs.shape[0]
+    height = row_locs.shape[0]
+    width  = col_locs.shape[0]
     each_rect_count = np.zeros((max_elems, num_blocks))
+    row_pos_bool = np.ones(height, dtype='bool')
+    col_pos_bool = np.ones(width,  dtype='bool')
+    if row_pos is not None:
+        row_pos_bool = np.logical_not(row_pos_bool)
+        row_pos_bool[row_pos] = True
+    if col_pos is not None:
+        col_pos_bool = np.logical_not(col_pos_bool)
+        col_pos_bool[col_pos] = True
 
     # for each block
     for ii in range(num_blocks):
         ## location of the current rectangle
         cur_rect_loc = rect_locs[ii]
-        ## searching a block of input data, which belongs to the current rectangle
-        if row_pos is None:
-            row_pos = np.where((cur_rect_loc[0] < row_locs) & (row_locs <= cur_rect_loc[1]))
-        if col_pos is None:
-            col_pos = np.where((cur_rect_loc[2] < col_locs) & (col_locs <= cur_rect_loc[3]))
-        extracted_data = X[row_pos][:,col_pos]
+        ## searching for a block of input data, which belongs to the current rectangle
+        _row_pos = (row_locs > cur_rect_loc[0]) & (row_locs <= cur_rect_loc[1]) & (row_pos_bool)
+        _col_pos = (col_locs > cur_rect_loc[2]) & (col_locs <= cur_rect_loc[3]) & (col_pos_bool)
+        extracted_data = X[_row_pos][:,_col_pos]
         ## checking the number of elements
         for jj in range(max_elems):
             each_rect_count[jj, ii] = np.count_nonzero(extracted_data==jj)
@@ -343,7 +355,7 @@ def calc_Dirichlet_likelihood(each_rect_count, alpha):
     each_rect_count: numpy.ndarray
         Number of elements having a value [row] for each rectangle [col]
     alpha: float
-        Dirichlet parameter
+        A Dirichlet parameter
 
     Returns
     ----------
@@ -358,10 +370,10 @@ def calc_Dirichlet_likelihood(each_rect_count, alpha):
     ## removing columns whose sum is 0 (= rectangle with size 0)
     c = each_rect_count[:, each_rect_count.sum(axis=0)>0 ]
     ## compute
-    ### modified
     likelihood  = scipy.special.gammaln(alpha * max_elems) * num_blocks
     likelihood -= scipy.special.gammaln(alpha) * max_elems * num_blocks
-    likelihood += ( (alpha - 1) * np.log(c + np.spacing(c)) ).sum()
+    likelihood += scipy.special.gammaln(c + alpha).sum()
+    likelihood -= scipy.special.gammaln(c.sum(axis=0) + alpha * max_elems).sum()
 
     return likelihood
 
@@ -395,14 +407,10 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
     prev_likelihood = calc_Dirichlet_likelihood(each_rect_count, alpha)
     num_rows = row_locs.shape[0]
     num_cols = col_locs.shape[0]
-#    num_iters = 500
 
     # row-wise Metropolis-Hastings
-#    for jj in range(num_iters):
-#        ii = random.choice(range(num_rows))
     l = list(range(num_rows)); random.shuffle(l)
     for ii in l:
-#    for ii in range(row_locs.shape[0]):
         # Computing a likelihood for a rectangle assignment just after modifying one rectangle
         ## backups
         bak = row_locs[ii]
@@ -419,14 +427,12 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
         if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - prev_likelihood:
             row_locs[ii] = bak
             each_rect_count = bak_each_rect_count
-        prev_likelihood = new_likelihood
+        else:
+            prev_likelihood = new_likelihood
 
     # column-wise Metropolis-Hastings
-#    for jj in range(num_iters):
-#        ii = random.choice(range(num_cols))
     l = list(range(num_cols)); random.shuffle(l)
     for ii in l:
-#    for ii in range(col_locs.shape[0]):
         ## backups
         bak = col_locs[ii]
         bak_each_rect_count = each_rect_count.copy()
@@ -442,7 +448,8 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
         if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - prev_likelihood:
             col_locs[ii] = bak
             each_rect_count = bak_each_rect_count
-        prev_likelihood = new_likelihood
+        else:
+            prev_likelihood = new_likelihood
 
     return row_locs, col_locs
 
@@ -469,7 +476,7 @@ def MH_update_num_rect(X, bp, beta_rand, rect_locs, uniform_rand, row_locs, col_
     alpha: float
         A parameter for Dirichlet distribution
     enc: float
-        ()
+        A desirable number of blocks
 
     Returns
     ----------
@@ -529,13 +536,10 @@ def MH_update_num_rect(X, bp, beta_rand, rect_locs, uniform_rand, row_locs, col_
     # accept or reject: if true, reject
     accept_reject = random.uniform()
     if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - cur_likelihood:
-        print('rejected: {} -> {}'.format(cur_likelihood, new_likelihood))
         bp = orig_bp
         beta_rand = orig_beta_rand
         rect_locs = orig_rect_locs
         uniform_rand = orig_uniform_rand
-    else:
-        print('accepted: {} -> {}'.format(cur_likelihood, new_likelihood))
 
     return bp, beta_rand, rect_locs, uniform_rand
 
@@ -570,7 +574,7 @@ def reconstruct_rp(beta_rand, uniform_rand):
         ## converting the Baxter permutation to floorplan partitioning
         label_mat = bp2fp(bp)
         ## creating rectangular partitioning from a given floorplan partitioning
-        rect_locs = evolv_rp(bp, label_mat, beta_rand[ii], rect_locs)
+        rect_locs = evolv_rp(bp, label_mat, beta_rand[ii-1], rect_locs)
 
     return bp, rect_locs
 
@@ -615,48 +619,53 @@ def MH_update_rp(beta_rand, uniform_rand, X, row_locs, col_locs, alpha):
         likelihood = calc_Dirichlet_likelihood(each_rect_count, alpha)
         return likelihood
 
+    # initial likelihood
+    prev_likelihood = calc_likelihood(rect_locs)
+
     # updating a Baxter permutation
     num_blocks = uniform_rand.shape[0]
-    for ii in range(num_blocks):
+    l = list(range(num_blocks)); random.shuffle(l)
+    for ii in l:
         # backup
-        orig_bp = bp.copy()
-        orig_rect_locs = rect_locs.copy()
         orig_uniform_rand = uniform_rand[ii]
-        # computing the current likelihood
-        cur_likelihood  = calc_likelihood(rect_locs)
         # updating
         uniform_rand[ii] = random.uniform()
-        bp, rect_locs = reconstruct_rp(beta_rand, uniform_rand)
+        new_bp, new_rect_locs = reconstruct_rp(beta_rand, uniform_rand)
+        # skipping the following if the Baxter permutation does not change at all
+        if (new_bp==bp).all(): continue
         # computing a new likelihood
-        new_likelihood = calc_likelihood(rect_locs)
+        new_likelihood = calc_likelihood(new_rect_locs)
         # accept or reject: if true, reject
         accept_reject = random.uniform()
-        if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - cur_likelihood:
-            bp = orig_bp
-            rect_locs = orig_rect_locs
+        if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - prev_likelihood:
             uniform_rand[ii] = orig_uniform_rand
+        else:
+            prev_likelihood = new_likelihood
+            bp = new_bp
+            rect_locs = new_rect_locs
 
     # updating rectangle sizes
-    for ii in range(num_blocks):
+    l = list(range(num_blocks-1)); random.shuffle(l)
+    for ii in l:
         # backup
-        orig_bp = bp.copy()
-        orig_rect_locs = rect_locs.copy()
         orig_beta_rand = beta_rand[ii]
-        # computing the current likelihood
-        cur_likelihood  = calc_likelihood(rect_locs)
         # update
         beta_rand[ii] = random.beta(1, 1)
-        bp, rect_locs = reconstruct_rp(beta_rand, uniform_rand)
+        _, new_rect_locs = reconstruct_rp(beta_rand, uniform_rand)
+        # check
+        if (new_rect_locs==rect_locs).all():
+            print('skipped b'); continue
         # computing a new likelihood
-        new_likelihood = calc_likelihood(rect_locs)
+        new_likelihood = calc_likelihood(new_rect_locs)
         # accept or reject: if true, reject
         accept_reject = random.uniform()
-        if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - cur_likelihood:
-            bp = orig_bp
-            rect_locs = orig_rect_locs
+        if math.log(accept_reject + np.spacing(accept_reject)) > new_likelihood - prev_likelihood:
             beta_rand[ii] = orig_beta_rand
+        else:
+            prev_likelihood = new_likelihood
+            rect_locs = new_rect_locs
 
-    return bp, beta_rand, rect_locs, uniform_rand
+    return bp, rect_locs, uniform_rand, beta_rand
 
 def calc_test_perplexity(X, rect_locs, row_locs, col_locs, alpha, missing_indices, missing_ratio):
     """
@@ -691,11 +700,16 @@ def calc_test_perplexity(X, rect_locs, row_locs, col_locs, alpha, missing_indice
     X_train[ missing_indices < missing_ratio ] = -1
 
     # Computing Dirichlet pamameters for all the elements
+    ### counting elements in blocks
     each_rect_count = count_elems_in_rects(X_train, rect_locs, row_locs, col_locs)
+    ## shapes
     max_elems = each_rect_count.shape[0]
     num_blocks = each_rect_count.shape[1]
-    a = np.dot( np.ones((max_elems, 1)), each_rect_count.sum(axis=0, keepdims=True) )
-    dir_param = (each_rect_count + alpha) / a
+    ## compute
+    each_rect_count_sum = each_rect_count.sum(axis=0)
+    keep_blocks = ( each_rect_count_sum>0 )
+    norm = np.dot( np.ones((max_elems, 1)), each_rect_count_sum[np.newaxis, keep_blocks] )
+    dir_param = (each_rect_count[:, keep_blocks] + alpha) / norm
 
     # Reprecating test data
     X_test = X.copy()
@@ -704,8 +718,7 @@ def calc_test_perplexity(X, rect_locs, row_locs, col_locs, alpha, missing_indice
     # computing
     each_rect_count = count_elems_in_rects(X_test, rect_locs, row_locs, col_locs)
     ## removing columns whose sum is 0 (= rectangle with size 0)
-    keep_blocks = ( each_rect_count.sum(axis=0)>0 )
-    cross_entropy = np.sum( each_rect_count[:, keep_blocks] * np.log(dir_param[:, keep_blocks]) )
+    cross_entropy = np.sum( each_rect_count[:, keep_blocks] * np.log(dir_param) )
 
     ## locations of missing elements in the test data
     train_mi = np.zeros(missing_indices.shape, dtype='bool')
@@ -727,7 +740,8 @@ def bpp_mcmc(X, opt=None, verbose=True):
     Parameters
     ----------
     X: numpy.ndarray
-        An input matrix (Currently, we accept matrices, namely 2-dimensional arrays.)
+        An input matrix (Currently, we accept matrices, namely 2-dimensional arrays.),
+        expected to have dtype=int8 (8-bit signed int).
     opt: utils.Options
         Options, see utils.py for the detail.
     verbose: bool
@@ -744,13 +758,6 @@ def bpp_mcmc(X, opt=None, verbose=True):
     perps: numpy.ndarray
         A sequence of test perplexity values
     """
-
-    enc: float = None
-    n: int = 1
-    alpha: float = 0.1
-    maxiter: int = 1001
-    missing_ratio: float = 0.1
-    rand_seed: int = None
 
     # option ititialization
     if opt is None:
@@ -775,7 +782,7 @@ def bpp_mcmc(X, opt=None, verbose=True):
     # Initialization
     if verbose: print('Initialization...')
     ## drawing a random vector from a beta distribution
-    beta_rand = random.beta(np.ones(opt.n), np.ones(opt.n))
+    beta_rand = random.beta(np.ones(opt.n-1), np.ones(opt.n-1))
     ## creating a Baxter permutation with length "opt.n"
     bp = np.array([0])
     uniform_rand = random.uniform(0, 1, size=1)
@@ -786,7 +793,7 @@ def bpp_mcmc(X, opt=None, verbose=True):
         ## converting the Baxter permutation to a floorplan partitioning
         label_matrix = bp2fp(bp)
         ## creating rectangular partitioning from a given floorplan partitioning
-        rect_locs = evolv_rp(bp, label_matrix, beta_rand[ii], rect_locs)
+        rect_locs = evolv_rp(bp, label_matrix, beta_rand[ii-1], rect_locs)
 
     # canvas initialization
     figs = plt.subplots(nrows=1, ncols=2, figsize=(12,6))
@@ -810,7 +817,7 @@ def bpp_mcmc(X, opt=None, verbose=True):
                                opt.alpha, opt.enc)
         # Metropolis-Hastings update of rectangles
         if verbose: print('Updating rectangles...')
-        bp, beta_rand, rect_locs, uniform_rand = \
+        bp, rect_locs, uniform_rand, beta_rand = \
             MH_update_rp(beta_rand, uniform_rand, X, row_locs, col_locs, opt.alpha)
         # compute test perplexity
         if verbose: print('rect_locs:\n', rect_locs)

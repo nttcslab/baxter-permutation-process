@@ -13,11 +13,11 @@ class BPPOptions:
     Parameters
     ----------
     enc: float
-        (to be checked)
+        A desirable number of blocks
     n: int
         Initial length of Baxter permutation
     alpha: float
-        (to be checked)
+        A Dirichlet parameter
     maxiter: int
         Maximum number of iterations
     missing_ratio: float
@@ -26,7 +26,7 @@ class BPPOptions:
         Fixed random seed, default = None
     """
     enc: float = None
-    n: int = 1
+    n: int = 2
     alpha: float = 0.1
     maxiter: int = 1001
     missing_ratio: float = 0.1
@@ -54,15 +54,15 @@ def extract_maxima(a):
     """
 
     # initialization
-    n = a.shape[0]
+    len_a = a.shape[0]
     l2r_maxs = [ a[0] ]
     r2l_maxs = [ a[-1] ]
     l2r_locs = [ 0 ]
-    r2l_locs = [ a.shape[0]-1 ]
+    r2l_locs = [ len_a-1 ]
 
     # search
-    for i_left in range(1, n):
-        i_right = (n-1)-i_left
+    for i_left in range(1, len_a):
+        i_right = (len_a-1)-i_left
         ## left
         if a[i_left] > l2r_maxs[-1]:
             l2r_maxs.append(a[i_left])
@@ -117,8 +117,6 @@ def plot_state(figs, X, rect_locs, row_locs, col_locs, perps):
 
     # drawing perplexity
     ax2.clear()
-#    ax2.set_ylim([0, 5])
-    ax2.set_yscale('log')
     ax2.set_xlabel('MCMC iterations')
     ax2.set_ylabel('Perplexity')
     ax2.plot(perps)
@@ -127,17 +125,16 @@ def plot_state(figs, X, rect_locs, row_locs, col_locs, perps):
     num_blocks = rect_locs.shape[0]
     for ii in range(num_blocks):
         cur_rect_loc = rect_locs[ii]
-        ##
+        ## elements in the rectangle
         cnd_r = (cur_rect_loc[0] < sorted_row_locs) & (sorted_row_locs <= cur_rect_loc[1])
-        extracted_rows = sorted_row_locs[cnd_r]
-        ##
         cnd_c = (cur_rect_loc[2] < sorted_col_locs) & (sorted_col_locs <= cur_rect_loc[3])
-        extracted_cols = sorted_col_locs[cnd_c]
-        ##
+        extracted_rows = np.arange(height)[cnd_r]
+        extracted_cols = np.arange(width)[cnd_c]
+        ## checking the size of the rectangle
         if (len(extracted_rows)>0) and (len(extracted_cols)>0):
-            ##
-            min_r, max_r = extracted_rows.min()*height-0.5, extracted_rows.max()*height+0.5
-            min_c, max_c = extracted_cols.min()*width -0.5, extracted_cols.max()*width +0.5
+            ## the position and size of the rectangle
+            min_r, max_r = extracted_rows.min()-0.5, extracted_rows.max()+0.5
+            min_c, max_c = extracted_cols.min()-0.5, extracted_cols.max()+0.5
             rect_width, rect_height = max_c-min_c, max_r-min_r
             ## drawing the current rectangle
             draw_rect = patches.Rectangle(xy=(min_c, min_r),
