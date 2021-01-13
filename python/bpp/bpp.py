@@ -377,7 +377,7 @@ def calc_Dirichlet_likelihood(each_rect_count, alpha):
 
     return likelihood
 
-def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
+def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha, num_updates):
     """
     Metropolis-Hastings process for updating the orders of rows and columns in input data
 
@@ -393,6 +393,8 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
         A vector representing relative sorted locations of columns in input data
     alpha: float
         A parameter for Dirichlet distribution
+    num_updates: int or None
+        Number of lines (rows and columns) to be updated.
 
     Returns
     ----------
@@ -409,8 +411,9 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
     num_cols = col_locs.shape[0]
 
     # row-wise Metropolis-Hastings
+    num_updates_row = num_rows if (num_updates is None) else min(num_updates, num_rows)
     l = list(range(num_rows)); random.shuffle(l)
-    for ii in l:
+    for ii in l[:num_updates_row]:
         # Computing a likelihood for a rectangle assignment just after modifying one rectangle
         ## backups
         bak = row_locs[ii]
@@ -431,8 +434,9 @@ def MH_update_input_order(X, rect_locs, row_locs, col_locs, alpha):
             prev_likelihood = new_likelihood
 
     # column-wise Metropolis-Hastings
+    num_updates_col = num_cols if (num_updates is None) else min(num_updates, num_cols)
     l = list(range(num_cols)); random.shuffle(l)
-    for ii in l:
+    for ii in l[:num_updates_col]:
         ## backups
         bak = col_locs[ii]
         bak_each_rect_count = each_rect_count.copy()
@@ -764,7 +768,8 @@ def bpp_mcmc(X, opt=None, verbose=True):
         opt = utils.BPPOptions(enc=X.size/20000)
     if opt.enc is None:
         opt = utils.BPPOptions(enc=X.size/20000, n=opt.n, alpha=opt.alpha, maxiter=opt.maxiter,
-                               missing_ratio=opt.missing_ratio, rand_seed=opt.random_seed)
+                               missing_ratio=opt.missing_ratio, rand_seed=opt.rand_seed,
+                               num_updates=opt.num_updates)
     if opt.rand_seed is not None:
         np.random.seed(opt.rand_seed)
     else:
@@ -809,7 +814,8 @@ def bpp_mcmc(X, opt=None, verbose=True):
         if verbose: print('Iter {}...'.format(iter))
         # Metropolis-Hastings update of input data sorting
         if verbose: print('Updating input data sorting...')
-        row_locs, col_locs = MH_update_input_order(X, rect_locs, row_locs, col_locs, opt.alpha)
+        row_locs, col_locs = MH_update_input_order(X, rect_locs, row_locs, col_locs,
+                                                   opt.alpha, opt.num_updates)
         # Metropolis-Hastings update of the number of rectangles
         if verbose: print('Updating number of rectangles...')
         bp, beta_rand, rect_locs, uniform_rand = \
@@ -827,5 +833,7 @@ def bpp_mcmc(X, opt=None, verbose=True):
         perps.append(perp)
         # plot
         utils.plot_state(figs, original_X, rect_locs, row_locs, col_locs, perps)
+
+    plt.ioff(); plt.show(); # interactive mode off
 
     return rect_locs, row_locs, col_locs, perps

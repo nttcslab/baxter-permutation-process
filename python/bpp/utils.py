@@ -24,6 +24,10 @@ class BPPOptions:
         Ratio of missing elements in test data
     rand_seed: int or None
         Fixed random seed, default = None
+    num_updates: int or None
+        Number of lines (rows and columns) to be updated in iterations.
+        Smaller will make iteratios faster, but the algorithm might be caught by local optima.
+        Default = None (all).
     """
     enc: float = None
     n: int = 2
@@ -31,6 +35,7 @@ class BPPOptions:
     maxiter: int = 1001
     missing_ratio: float = 0.1
     rand_seed: int = None
+    num_updates: int = None
 
 def extract_maxima(a):
     """
