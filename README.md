@@ -12,7 +12,7 @@ The key features are listed as follows:
 
 Please carefully read the licence file before installing and utilizing our software. The following paper must be cited when publishing artiches that adopt or improve out software:
 
-Masahiro Nakano, Akisato Kimura, Takeshi Yamada, Naonori Ueda, "Baxter permutation process," Advances in Neural Information Processing Systems 33 (NeurIPS2020).
+*Masahiro Nakano, Akisato Kimura, Takeshi Yamada, Naonori Ueda, "Baxter permutation process," Advances in Neural Information Processing Systems 33 (NeurIPS2020).*
 
 For the Matlab implementation, you will need a basic installation without any other Toolboxes. 
 
