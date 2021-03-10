@@ -1,9 +1,0 @@
-### requirements.txt
-
-### Requirements without version specifiers
-numpy
-scipy
-matplotlib
-
-### Requirements with version specifiers
-python_version >= 3.7
